@@ -10,8 +10,6 @@ from ollama import chat
 from ollama import ChatResponse
 
 
-model = 'Mistral'
-
 
 def CheckModel(YourModel):
     '''
@@ -27,14 +25,14 @@ def CheckModel(YourModel):
 
     if f"{YourModel}:latest" in ListeModelUser:
         print("[CheckModel] - Model installé")
+        return True
     else:
         print("[CheckModel] - Model non présent.")
         print("[CheckModel] - Installation en cours...")
 
-        ollama.pull(model)
-        if model in ListeModelUser:
+        ollama.pull(YourModel)
+        if YourModel in ListeModelUser:
             print("[CheckModel] - Installation terminer")
             return True
         print("")
         return False
-CheckModel(model)
