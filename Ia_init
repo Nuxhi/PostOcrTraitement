@@ -1,0 +1,40 @@
+'''
+ollama git : https://github.com/ollama/ollama-python
+ollama doc : https://docs.ollama.com/
+'''
+import ollama
+
+
+#Utile pour le local uniquement
+from ollama import chat
+from ollama import ChatResponse
+
+
+model = 'Mistral'
+
+
+def CheckModel(YourModel):
+    '''
+    Cette méthode a pour but de vérifié si le model que l'utilisateur souhaite intallé et présent sur la machine
+    si ce n'est pas le cas on l'installe
+    '''
+
+    models = ollama.list()
+    ListeModelUser = []
+    for m in models.models:
+        name = m.get("model")
+        ListeModelUser.append(name)
+
+    if f"{YourModel}:latest" in ListeModelUser:
+        print("[CheckModel] - Model installé")
+    else:
+        print("[CheckModel] - Model non présent.")
+        print("[CheckModel] - Installation en cours...")
+
+        ollama.pull(model)
+        if model in ListeModelUser:
+            print("[CheckModel] - Installation terminer")
+            return True
+        print("")
+        return False
+CheckModel(model)
