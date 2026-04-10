@@ -8,7 +8,7 @@ STATE : ALPHA
 Item : https://m3c.universita.corsica/s/fr/item/15
 '''
 
-import CheckModel
+import app.CheckModel as CheckModel
 
 from ollama import chat
 from ollama import ChatResponse

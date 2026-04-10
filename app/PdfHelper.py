@@ -98,6 +98,12 @@ def DownloadPdf(src):
     print(f"[DownloadPdf] - Requete envoyé")    
     r = requests.get(SrcClean, headers=headers)
 
+    try:
+        os.chdir("./pdf")
+    except FileNotFoundError:
+        os.mkdir("./pdf")
+        os.chdir("./pdf")
+
     print(f"[DownloadPdf] - Debut du téléchargement")    
     with open(PdfName, 'wb') as f:
         f.write(r.content)

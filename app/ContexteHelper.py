@@ -20,15 +20,10 @@ headers = {
 
 
 url = "https://m3c.universita.corsica/s/fr/item/18"
-reponse = requests.get(url, headers=headers, timeout=15)
-reponse.raise_for_status()
-print(f"Status: {reponse.status_code}")
-
-
-soup = BeautifulSoup(reponse.text, "html.parser")
 
 
 def extract_field(soup_obj, data_type):
+
     node = soup_obj.select_one(
         f'div.accordion__item[data-type="{data_type}"] span.accordion__content'
     )
@@ -36,7 +31,14 @@ def extract_field(soup_obj, data_type):
         return None
     return " ".join(node.stripped_strings)
 
-def startExtraction():
+def startExtraction(url):
+
+    reponse = requests.get(url, headers=headers, timeout=15)
+    reponse.raise_for_status()
+    print(f"Status: {reponse.status_code}")
+    soup = BeautifulSoup(reponse.text, "html.parser")
+
+
     infos = {
         "titre": extract_field(soup, "dcterms:title")
         or (soup.select_one("h2.page-header__title").get_text(strip=True) if soup.select_one("h2.page-header__title") else None),
@@ -50,3 +52,4 @@ def startExtraction():
     for cle, valeur in infos.items():
         print(f"- {cle}: {valeur if valeur else 'non trouve'}")
 
+startExtraction(url)
