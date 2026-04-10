@@ -11,6 +11,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
+from ContexteHelper import GetInfo
 
 headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36",
@@ -32,7 +33,7 @@ headers = {
 #L'url du pdf est charger dans un script JS qui ne peux pas etre récupéré
 #On va donc simuler une page web (a changer potentiellement plus tard pour un gain de temps / opti)
 
-url = "https://m3c.universita.corsica/s/fr/item/51"
+url = "https://m3c.universita.corsica/s/fr/item/15"
 
 
 def GetUrl(url):
@@ -75,7 +76,7 @@ def GetUrl(url):
         print("[GetUrl] - Driver fermer")
     
 
-def DownloadPdf(src):
+def DownloadPdf(src, BaseUrl):
     '''
     Cette méthode a pour objectif de télécharger le fichier pdf de la source donnée
     dans un premier temps on nettoie l'url de GetUrl en garder le file= puis en le décodant
@@ -91,7 +92,7 @@ def DownloadPdf(src):
     SrcClean = unquote(SrcParse)
     print(f"[DownloadPdf] - Url nettoyer : {SrcClean}")
 
-    PdfName = 'M3C-'+SrcClean.split("/")[-1]
+    PdfName = 'M3C-'+GetInfo(BaseUrl, 'titre')
     print(f"[DownloadPdf] - pdf : {PdfName}")    
     
 
@@ -105,18 +106,18 @@ def DownloadPdf(src):
         os.chdir("./pdf")
 
     print(f"[DownloadPdf] - Debut du téléchargement")    
-    with open(PdfName, 'wb') as f:
+    with open(PdfName+'.pdf', 'wb') as f:
         f.write(r.content)
     f.close()
 
-    print("[DownloadPdf] - PDF téléchargé : {PdfName}.pdf")
+    print(f"[DownloadPdf] - PDF téléchargé : {PdfName}.pdf")
 
 
 def PdfStarter(url):
     print('[PdfStarter] --> GetUrl ')
     src = GetUrl(url)
     print('[PdfStarter] --> GetUrl --> DownloadPdf ')
-    DownloadPdf(src)
+    DownloadPdf(src, url)
 
 
 PdfStarter(url)

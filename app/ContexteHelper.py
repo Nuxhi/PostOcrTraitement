@@ -48,8 +48,26 @@ def startExtraction(url):
         "langue": extract_field(soup, "dcterms:language"),
     }
 
-    print("\nInformations extraites:")
-    for cle, valeur in infos.items():
-        print(f"- {cle}: {valeur if valeur else 'non trouve'}")
+    # print("\nInformations extraites:")
+    # for cle, valeur in infos.items():
+    #     print(f"- {cle}: {valeur if valeur else 'non trouve'}")
+    
+    return infos
 
-startExtraction(url)
+
+def GetInfo(url, info):
+    '''
+    Cette methode permet de récupéré des informations depuis l'url fournis
+    '''
+    print(f"[GetInfo] - Extraction de l'information : {info}")
+    infodic = startExtraction(url)
+    for e in infodic:
+        if e == info:
+            print(f"[GetInfo] - Information trouvé : {infodic[e]}")
+            return infodic[e]
+        elif info == 'all':
+            for cle, valeur in infodic.items():
+                print(cle, valeur, '\n')
+        else:
+            print("information non comprise")
+            return False

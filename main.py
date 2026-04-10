@@ -15,7 +15,6 @@ from ollama import ChatResponse
 
 model = 'Mistral'
 
-
 CheckModel.CheckModel(model)
     
   
@@ -23,11 +22,11 @@ CheckModel.CheckModel(model)
 response: ChatResponse = chat(model='Mistral', messages=[
   {
     'role': 'system',
-    'content':'Tu fait la correction POST-OCR de la phrase donnée par lutilisateur.'  
+    'content':'tu répond simplement aux questions.'  
   },
   {
     'role': 'user',
-    'content': "Salut",
+    'content': "Comment tu vas ? ",
   },
 ])
 print(response['message']['content'])
