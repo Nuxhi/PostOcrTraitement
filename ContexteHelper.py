@@ -19,7 +19,7 @@ headers = {
 }
 
 
-url = "https://m3c.universita.corsica/s/fr/item/15"
+url = "https://m3c.universita.corsica/s/fr/item/18"
 reponse = requests.get(url, headers=headers, timeout=15)
 reponse.raise_for_status()
 print(f"Status: {reponse.status_code}")
@@ -36,16 +36,17 @@ def extract_field(soup_obj, data_type):
         return None
     return " ".join(node.stripped_strings)
 
+def startExtraction():
+    infos = {
+        "titre": extract_field(soup, "dcterms:title")
+        or (soup.select_one("h2.page-header__title").get_text(strip=True) if soup.select_one("h2.page-header__title") else None),
+        "description": extract_field(soup, "dcterms:description"),
+        "date": extract_field(soup, "dcterms:date"),
+        "couverture_temporelle": extract_field(soup, "dcterms:temporal"),
+        "langue": extract_field(soup, "dcterms:language"),
+    }
 
-infos = {
-    "titre": extract_field(soup, "dcterms:title")
-    or (soup.select_one("h2.page-header__title").get_text(strip=True) if soup.select_one("h2.page-header__title") else None),
-    "description": extract_field(soup, "dcterms:description"),
-    "date": extract_field(soup, "dcterms:date"),
-    "couverture_temporelle": extract_field(soup, "dcterms:temporal"),
-    "langue": extract_field(soup, "dcterms:language"),
-}
+    print("\nInformations extraites:")
+    for cle, valeur in infos.items():
+        print(f"- {cle}: {valeur if valeur else 'non trouve'}")
 
-print("\nInformations extraites:")
-for cle, valeur in infos.items():
-    print(f"- {cle}: {valeur if valeur else 'non trouve'}")
