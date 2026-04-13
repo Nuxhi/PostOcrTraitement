@@ -19,7 +19,7 @@ headers = {
 }
 
 
-url = "https://m3c.universita.corsica/s/fr/item/18"
+url = "https://m3c.universita.corsica/s/fr/item/15"
 
 
 def extract_field(soup_obj, data_type):
@@ -35,7 +35,7 @@ def startExtraction(url):
 
     reponse = requests.get(url, headers=headers, timeout=15)
     reponse.raise_for_status()
-    print(f"Status: {reponse.status_code}")
+    #print(f"Status: {reponse.status_code}")
     soup = BeautifulSoup(reponse.text, "html.parser")
 
 
@@ -61,13 +61,15 @@ def GetInfo(url, info):
     '''
     print(f"[GetInfo] - Extraction de l'information : {info}")
     infodic = startExtraction(url)
-    for e in infodic:
-        if e == info:
-            print(f"[GetInfo] - Information trouvé : {infodic[e]}")
-            return infodic[e]
-        elif info == 'all':
-            for cle, valeur in infodic.items():
-                print(cle, valeur, '\n')
-        else:
-            print("information non comprise")
-            return False
+
+    if info == 'all':
+        for cle, valeur in infodic.items():
+            print(cle, valeur, '\n')
+        return infodic
+
+    if info in infodic:
+        print(f"[GetInfo] - Information trouvé : {infodic[info]}")
+        return infodic[info]
+
+    print("information non comprise")
+    return False

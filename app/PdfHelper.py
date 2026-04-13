@@ -11,7 +11,10 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
-from ContexteHelper import GetInfo
+try:
+    from app.ContexteHelper import GetInfo
+except ModuleNotFoundError:
+    from ContexteHelper import GetInfo
 
 headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36",
@@ -34,12 +37,18 @@ headers = {
 #On va donc simuler une page web (a changer potentiellement plus tard pour un gain de temps / opti)
 
 url = "https://m3c.universita.corsica/s/fr/item/15"
+LastName = ""
 
+def GetLastName():
+    global LastName
+    return LastName
+    
 
 def GetUrl(url):
     '''
     Cette méthode a pour objectif de trouver le lien du fichier pdf afficher sur la page de la M3C
     '''
+    print(f"[GetUrl] - URL donnée : {url}")
     #Ouverture de la page web
     options = Options()
     options.add_argument("--headless=new")
@@ -77,6 +86,7 @@ def GetUrl(url):
     
 
 def DownloadPdf(src, BaseUrl):
+    global LastName
     '''
     Cette méthode a pour objectif de télécharger le fichier pdf de la source donnée
     dans un premier temps on nettoie l'url de GetUrl en garder le file= puis en le décodant
@@ -111,6 +121,8 @@ def DownloadPdf(src, BaseUrl):
     f.close()
 
     print(f"[DownloadPdf] - PDF téléchargé : {PdfName}.pdf")
+    LastName = PdfName
+    return True
 
 
 def PdfStarter(url):
@@ -118,6 +130,4 @@ def PdfStarter(url):
     src = GetUrl(url)
     print('[PdfStarter] --> GetUrl --> DownloadPdf ')
     DownloadPdf(src, url)
-
-
-PdfStarter(url)
+    
