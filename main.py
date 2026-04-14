@@ -20,10 +20,11 @@ from datetime import datetime
 from ollama import chat
 from ollama import ChatResponse
 
-
-model = 'qwen3-vl:8b'
+modelListe = ['mistral', 'llama3:8b', 'qwen3-vl:8b']
+model = modelListe[1]
 
 CheckModel.CheckModel(model)
+MetricsCerWer.configure_model(model)
     
 
 # def chunking(pdfname):
@@ -75,19 +76,22 @@ def llmCorrection(infos, txt, i):
   response: ChatResponse = chat(model=model, messages=[
     {
       'role': 'system',
-      'content':system_content,
+      'content':system_content
+      },
+    {
       'role': 'user',
       'content': f"TEXTE A CORRIGER : {txt}"
     }
   ])
   print(response.message.content)
+  print(model)
   write(response.message.content, i)
 
 
 def write(txt, i):
   global model
   filename = datetime.now().strftime("pdf-%d-%m-%H")
-  
+  filename = model+"filename"
   project_root = os.path.dirname(os.path.abspath(__file__))
   output_dir = os.path.join(project_root, "output")
   os.makedirs(output_dir, exist_ok=True)

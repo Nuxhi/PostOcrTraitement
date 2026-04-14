@@ -36,6 +36,7 @@ LANG_MAP = {
 
 ACTIVE_LANG = "fr"
 COMMON_WORDS = set(top_n_list(ACTIVE_LANG, 5000))
+ACTIVE_MODEL = "Mistral"
 
 def get_lang_code(url):
     """Resout le code langue utilise par les ressources lexicales d'un document.
@@ -56,13 +57,21 @@ def get_lang_code(url):
         str: Code langue normalise compatible avec les outils lexicaux en aval.
         Retourne `"fr"` par defaut si la langue est absente ou inconnue.
     """
-    langue = ContexteHelper.GetInfo(url, 'langue')
-    langue = langue.split(";")[0]
+    frl = {"fr", "français", "francais"}
 
-    if langue:
-        langue = langue.lower().strip()
-    else:
+    langue_raw = ContexteHelper.GetInfo(url, 'langue')
+    if not langue_raw:
         return "fr"
+
+    langues = [part.strip().lower() for part in str(langue_raw).split(";") if part.strip()]
+    if not langues:
+        return "fr"
+
+    # Regle metier: si la 2e langue est le francais, on force le dictionnaire FR.
+    if len(langues) >= 2 and langues[1] in frl:
+        return "fr"
+
+    langue = langues[0]
 
     lang_code = LANG_MAP.get(langue, "fr")
 
@@ -81,6 +90,14 @@ def configure_article_language(url: str) -> str:
     ACTIVE_LANG = get_lang_code(url)
     COMMON_WORDS = set(top_n_list(ACTIVE_LANG, 5000))
     return ACTIVE_LANG
+
+
+def configure_model(model_name: str) -> str:
+    """Configure le modele LLM utilise par la classification OCR."""
+    global ACTIVE_MODEL
+    if model_name:
+        ACTIVE_MODEL = str(model_name).strip()
+    return ACTIVE_MODEL
 
 # =========================
 # NORMALISATION
@@ -349,7 +366,7 @@ def llm_classify(text):
         suit les consignes, sinon une valeur de fallback.
     """
     response: ChatResponse = chat(
-        model='Mistral',
+        model=ACTIVE_MODEL,
         options={
             "temperature": 0.0,
             "top_p": 0.1,
