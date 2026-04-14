@@ -1,8 +1,9 @@
 def prompt():
-    return "aide à relire et à corriger " \
-    "les erreurs présentes dans les textes issus de la transcription automatique (OCR) " \
-    "de documents historiques. " \
-    "Votre tâche consiste à examiner attentivement le texte suivant et à corriger les erreurs introduites par le logiciel d'OCR."
+    return """
+    aide à relire et à corriger :
+    les erreurs présentes dans les textes issus de la transcription automatique (OCR) de documents historiques.
+    Votre tâche consiste à examiner attentivement le texte suivant et à corriger les erreurs introduites par le logiciel d'OCR.
+"""
 
 def promptCerWer() -> str:
     return f"""

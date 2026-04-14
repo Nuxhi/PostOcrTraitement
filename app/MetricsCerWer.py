@@ -3,8 +3,16 @@ import re
 import Levenshtein
 from wordfreq import zipf_frequency, top_n_list
 
-import SystemPrompt
-import ContexteHelper
+
+try:
+    import app.SystemPrompt as SystemPrompt
+except ModuleNotFoundError:
+    import SystemPrompt as SystemPrompt
+
+try:
+    import app.ContexteHelper as ContexteHelper
+except ModuleNotFoundError:
+    import ContexteHelper as ContexteHelper
 
 import threading
 
@@ -48,7 +56,6 @@ def get_lang_code(url):
     """
     langue = ContexteHelper.GetInfo(url, 'langue')
     langue = langue.split(";")[0]
-    print(langue)
 
     if langue:
         langue = langue.lower().strip()
@@ -386,28 +393,24 @@ def llm_to_score(label):
 # SCORE FINAL FUSION
 # =========================
 
-def final_quality_score(text):
-    """Fusionne les signaux heuristique, lexical et LLM en un score final.
+def _final_fusion(text):
+    """Calcule le score fusionne et le label final sans exposer la logique brute.
 
     Principe:
-        - Lance deux workers en parallele avec des threads:
-            - un worker "algos" (heuristique + lexical),
-            - un worker "llm" (classification + conversion en score).
-        - Attend la fin des deux workers puis recupere leurs resultats.
-    - Combine les trois composantes avec des poids fixes:
-      - heuristique: `0.5`
-      - lexical: `0.3`
-      - llm: `0.2`
-    - Applique une sous-pondération (`* 0.8`) si le desaccord entre heuristique
-      et LLM est fort (`abs(h - llm_score) > 0.4`).
+    - Lance en parallele le bloc algorithmes et le bloc LLM.
+    - Fusionne les resultats avec une pondération plus forte pour les signaux
+      algorithmiques que pour le LLM.
+    - Retourne le score et le label final pour reutilisation interne.
 
     Args:
         text (str): Texte OCR a evaluer.
 
     Returns:
-        tuple[float, str]:
-            - score final fusionne dans `[0, 1]` (avec penalite de desaccord),
-            - label LLM utilise dans la chaine de decision.
+        tuple[float, str, str, float]:
+            - score fusionne final,
+            - label final,
+            - label brut du LLM,
+            - score algo (heuristique + lexical, sans composante LLM).
     """
     algo_results = {}
     llm_results = {}
@@ -428,9 +431,7 @@ def final_quality_score(text):
         except Exception as exc:
             errors.append(exc)
 
-    print("[METRICSCERWER] - Worker algo launch")
     algo_thread = threading.Thread(target=algo_worker, name="algo-worker")
-    print("[METRICSCERWER] - Worker algo launch")
     llm_thread = threading.Thread(target=llm_worker, name="llm-worker")
 
     algo_thread.start()
@@ -447,50 +448,60 @@ def final_quality_score(text):
     llm_label = llm_results["llm_label"]
     llm_score = llm_results["llm_score"]
 
-    # fusion pondérée
-    score = 0.5 * h + 0.3 * lex + 0.2 * llm_score
+    algo_score = 0.55 * h + 0.30 * lex
+    score = 0.55 * h + 0.30 * lex + 0.15 * llm_score
 
-    # pénalité si désaccord fort
     disagreement = abs(h - llm_score)
-
     if disagreement > 0.4:
         score *= 0.8
 
-    return score, llm_label
+    if llm_label == "dirty" and score < 0.6:
+        final_label_value = "dirty"
+    elif score > 0.75:
+        final_label_value = "clean"
+    elif score > 0.5:
+        final_label_value = "medium"
+    else:
+        final_label_value = "dirty"
 
-# =========================
-# LABEL FINAL
-# =========================
+    return score, final_label_value, llm_label, algo_score
 
-def final_label(text):
-    """Convertit le score fusionne en classe finale de qualite.
 
-    Principe:
-    - Part du score numerique fusionne et du label LLM.
-    - Applique une regle conservative:
-      si le LLM predit `dirty` et que le score est inferieur a `0.6`, retourne `dirty`.
-    - Sinon applique des seuils:
-      - `> 0.75`: `clean`
-      - `> 0.5`: `medium`
-      - sinon: `dirty`
+def score_details(text):
+    """Retourne les details utiles pour afficher les decisions de scoring.
 
     Args:
-        text (str): Texte OCR a classer.
+        text (str): Texte OCR a evaluer.
+
+    Returns:
+        dict: Details contenant `algo_score`, `llm_label`, `final_score`,
+        et `final_label_value`.
+    """
+    final_score, final_label_value, llm_label, algo_score = _final_fusion(text)
+    return {
+        "algo_score": algo_score,
+        "llm_label": llm_label,
+        "final_score": final_score,
+        "final_label_value": final_label_value,
+    }
+
+
+def final_quality_score(text):
+    """Retourne uniquement le label final issu de la fusion.
+
+    Principe:
+    - S'appuie sur la fusion interne qui combine les signaux algorithmiques
+      et le signal LLM.
+    - Les signaux algorithmiques ont un poids legerement plus fort que le LLM.
+
+    Args:
+        text (str): Texte OCR a evaluer.
 
     Returns:
         str: Label final dans `{clean, medium, dirty}`.
     """
-    score, llm_label = final_quality_score(text)
-
-    if llm_label == "dirty" and score < 0.6:
-        return "dirty"
-
-    if score > 0.75:
-        return "clean"
-    elif score > 0.5:
-        return "medium"
-    else:
-        return "dirty"
+    _, final_label_value, _, _ = _final_fusion(text)
+    return final_label_value
 
 # =========================
 # DEBUG COMPLET
@@ -513,21 +524,14 @@ def debug(text):
     h = quality_score(text)
     lex = lexical_penalty(text)
     llm = llm_classify(text)
-    final_score, _ = final_quality_score(text)
+    final_score, final_label_value, llm_label, algo_score = _final_fusion(text)
 
     print("\n--- DEBUG OCR ---")
     print("TEXT:", text)
     print("heuristic:", round(h, 3))
     print("lexical penalty:", round(lex, 3))
     print("llm:", llm)
+    print("llm label (fusion):", llm_label)
+    print("algo score:", round(algo_score, 3))
     print("final score:", round(final_score, 3))
-    print("final label:", final_label(text))
-
-# =========================
-# MAIN
-# =========================
-
-if __name__ == "__main__":
-    txt = "Gioja de' cori e' sempre t'ho chiamattn,li per amari a lia ( 1), sojn (~) snrdu, e muttu ; Pattu (3) più chi nno paui unn dannatn, Sto in didr (4) ::'lferno, e Li dumaonu ajuttu. Oh ingratta donna, e parchl m'hai hurlattu, E quistn pettn parchi rhai [aruttu? ( 5 ) Ê medru (6) esseri amanti, e nun amattn Ch'esseri amanti'amatm, e po' tradnttn (7), Gioja, tu m' ha"
-    #txt = "Salut Je sis Fabien"
-    debug(txt)  
+    print("final label:", final_label_value)

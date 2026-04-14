@@ -38,16 +38,6 @@ def ShowText(pdfname, pageVoulu):
     return text
 
 
-def chunking(pdfname):
-    #Path()
-    reader = PdfReader(pdfname+'.pdf')
-    for i in range(NbrPage(pdfname)):
-        try:
-            ShowText(pdfname, i)
-        except NameError as e:
-            return e
-
-
 #chunking("M3C-Canti popolari corsi")
 
 def test(pdfname):
