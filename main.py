@@ -118,7 +118,9 @@ def LaunchPostOcr(url):
     txt = PdfChunking.ShowText(name, i)
     manager(txt, infos, i)
   print("fini")
-     
 
+
+
+
+##Lancement méthode principale attention a la chauffe
 LaunchPostOcr("https://m3c.universita.corsica/s/fr/item/227")
-
