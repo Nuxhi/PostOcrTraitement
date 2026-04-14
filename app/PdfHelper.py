@@ -36,7 +36,7 @@ headers = {
 #L'url du pdf est charger dans un script JS qui ne peux pas etre récupéré
 #On va donc simuler une page web (a changer potentiellement plus tard pour un gain de temps / opti)
 
-url = "https://m3c.universita.corsica/s/fr/item/15"
+
 LastName = ""
 
 def GetLastName():

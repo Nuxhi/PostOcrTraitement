@@ -15,13 +15,13 @@ import app.PdfHelper as PdfHelper
 import app.PdfChunking as PdfChunking
 import app.MetricsCerWer as MetricsCerWer
 
-import time
 import os
+from datetime import datetime
 from ollama import chat
 from ollama import ChatResponse
 
 
-model = 'Mistral'
+model = 'qwen3-vl:8b'
 
 CheckModel.CheckModel(model)
     
@@ -60,12 +60,19 @@ def llmCorrection(infos, txt, i):
       f"date : {infos['date']} "
       f"couverture temporelle : {infos['couverture_temporelle']} "
       f"langue : {infos['langue']} \n\n"
+      "Exemples de correction OCR :\n"
+      "Entrée : L0 roy a parlc au peup1e\n"
+      "Sortie : Le roy a parlé au peuple\n\n"
+
+      "Entrée : lcs hommcs sont arr1vés\n"
+      "Sortie : les hommes sont arrivés\n\n"
+
       "Répond STRICTEMENT sous la forme suivante :\n"
       "<texte corrigé uniquement>\n"
       "Ne rajoute aucun commentaire."
       )
 
-  response: ChatResponse = chat(model='Mistral', messages=[
+  response: ChatResponse = chat(model=model, messages=[
     {
       'role': 'system',
       'content':system_content,
@@ -78,8 +85,16 @@ def llmCorrection(infos, txt, i):
 
 
 def write(txt, i):
-  output_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "myfile.txt")
+  global model
+  filename = datetime.now().strftime("pdf-%d-%m-%H")
+  
+  project_root = os.path.dirname(os.path.abspath(__file__))
+  output_dir = os.path.join(project_root, "output")
+  os.makedirs(output_dir, exist_ok=True)
+  output_path = os.path.join(output_dir, filename + '.txt')
+  
   with open(output_path, "a", encoding="utf-8") as f:
+      f.write(f"MODEL : {model}")
       f.write("="*10 + f"\n, PAGE : {i} \n" + "="*10)
       f.write(txt + "\n")
 
@@ -103,6 +118,8 @@ def LaunchPostOcr(url):
       url = input("Lien de l'article a travailler : ")
   print(f"[LLM] - url : {url} ")
 
+  MetricsCerWer.configure_article_language(url)
+
   
   infos = ContexteHelper.startExtraction(url) 
   PdfHelper.PdfStarter(url) #Téléchargement du pdf
@@ -120,7 +137,5 @@ def LaunchPostOcr(url):
   print("fini")
 
 
-
-
-##Lancement méthode principale attention a la chauffe
-LaunchPostOcr("https://m3c.universita.corsica/s/fr/item/227")
+#Lancement méthode principale attention a la chauffe
+LaunchPostOcr("https://m3c.universita.corsica/s/fr/item/16")

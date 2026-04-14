@@ -19,9 +19,6 @@ headers = {
 }
 
 
-url = "https://m3c.universita.corsica/s/fr/item/15"
-
-
 def extract_field(soup_obj, data_type):
 
     node = soup_obj.select_one(

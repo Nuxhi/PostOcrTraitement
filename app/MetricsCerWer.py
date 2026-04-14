@@ -16,7 +16,6 @@ except ModuleNotFoundError:
 
 import threading
 
-url = "https://m3c.universita.corsica/s/fr/item/15"
 LANG_MAP = {
     "français": "fr",
     "francais": "fr",
@@ -34,6 +33,9 @@ LANG_MAP = {
 
     "latin": "la"
 }
+
+ACTIVE_LANG = "fr"
+COMMON_WORDS = set(top_n_list(ACTIVE_LANG, 5000))
 
 def get_lang_code(url):
     """Resout le code langue utilise par les ressources lexicales d'un document.
@@ -73,7 +75,13 @@ def get_lang_code(url):
 
     return lang_code
 
-langue = get_lang_code(url)
+def configure_article_language(url: str) -> str:
+    """Configure la langue active des metriques a partir de l'URL article."""
+    global ACTIVE_LANG, COMMON_WORDS
+    ACTIVE_LANG = get_lang_code(url)
+    COMMON_WORDS = set(top_n_list(ACTIVE_LANG, 5000))
+    return ACTIVE_LANG
+
 # =========================
 # NORMALISATION
 # =========================
@@ -99,12 +107,6 @@ def normalize(text: str) -> str:
     return text.strip()
 
 
-
-# =========================
-# COMMON WORDS
-# =========================
-
-COMMON_WORDS = set(top_n_list(langue, 5000))
 
 # =========================
 # HEURISTIQUES OCR
@@ -309,7 +311,7 @@ def lexical_penalty(text):
         if len(w) < 4:
             continue
 
-        if zipf_frequency(w, "fr") > 2:
+        if zipf_frequency(w, ACTIVE_LANG) > 2:
             checked += 1
             continue
 
@@ -417,6 +419,7 @@ def _final_fusion(text):
     errors = []
 
     def algo_worker():
+        print("[MERICSCERWER] - [WORKER ALGO]")
         try:
             algo_results["h"] = quality_score(text)
             algo_results["lex"] = 1 - lexical_penalty(text)
@@ -424,6 +427,7 @@ def _final_fusion(text):
             errors.append(exc)
 
     def llm_worker():
+        print("[MERICSCERWER] - [WORKER LLM]")
         try:
             llm_label_local = llm_classify(text)
             llm_results["llm_label"] = llm_label_local
