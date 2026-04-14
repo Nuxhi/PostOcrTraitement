@@ -6,6 +6,8 @@ from wordfreq import zipf_frequency, top_n_list
 import SystemPrompt
 import ContexteHelper
 
+import threading
+
 url = "https://m3c.universita.corsica/s/fr/item/15"
 LANG_MAP = {
     "français": "fr",
@@ -88,6 +90,8 @@ def normalize(text: str) -> str:
     text = re.sub(r"[^\w\sàâéèêëîïôûùüç]", " ", text)
     text = re.sub(r"\s+", " ", text)
     return text.strip()
+
+
 
 # =========================
 # COMMON WORDS
@@ -386,9 +390,10 @@ def final_quality_score(text):
     """Fusionne les signaux heuristique, lexical et LLM en un score final.
 
     Principe:
-    - Calcule le score heuristique (`h`).
-    - Convertit la penalite lexicale en qualite (`lex = 1 - penalite`).
-    - Recupere le label LLM puis son score numerique.
+        - Lance deux workers en parallele avec des threads:
+            - un worker "algos" (heuristique + lexical),
+            - un worker "llm" (classification + conversion en score).
+        - Attend la fin des deux workers puis recupere leurs resultats.
     - Combine les trois composantes avec des poids fixes:
       - heuristique: `0.5`
       - lexical: `0.3`
@@ -404,11 +409,43 @@ def final_quality_score(text):
             - score final fusionne dans `[0, 1]` (avec penalite de desaccord),
             - label LLM utilise dans la chaine de decision.
     """
-    h = quality_score(text)
-    lex = 1 - lexical_penalty(text)
+    algo_results = {}
+    llm_results = {}
+    errors = []
 
-    llm_label = llm_classify(text)
-    llm_score = llm_to_score(llm_label)
+    def algo_worker():
+        try:
+            algo_results["h"] = quality_score(text)
+            algo_results["lex"] = 1 - lexical_penalty(text)
+        except Exception as exc:
+            errors.append(exc)
+
+    def llm_worker():
+        try:
+            llm_label_local = llm_classify(text)
+            llm_results["llm_label"] = llm_label_local
+            llm_results["llm_score"] = llm_to_score(llm_label_local)
+        except Exception as exc:
+            errors.append(exc)
+
+    print("[METRICSCERWER] - Worker algo launch")
+    algo_thread = threading.Thread(target=algo_worker, name="algo-worker")
+    print("[METRICSCERWER] - Worker algo launch")
+    llm_thread = threading.Thread(target=llm_worker, name="llm-worker")
+
+    algo_thread.start()
+    llm_thread.start()
+
+    algo_thread.join()
+    llm_thread.join()
+
+    if errors:
+        raise errors[0]
+
+    h = algo_results["h"]
+    lex = algo_results["lex"]
+    llm_label = llm_results["llm_label"]
+    llm_score = llm_results["llm_score"]
 
     # fusion pondérée
     score = 0.5 * h + 0.3 * lex + 0.2 * llm_score
