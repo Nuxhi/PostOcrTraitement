@@ -20,7 +20,6 @@ headers = {
 
 
 def extract_field(soup_obj, data_type):
-
     node = soup_obj.select_one(
         f'div.accordion__item[data-type="{data_type}"] span.accordion__content'
     )

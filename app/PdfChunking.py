@@ -36,12 +36,3 @@ def ShowText(pdfname, pageVoulu):
     text = page.extract_text()
     print(text)
     return text
-
-
-#chunking("M3C-Canti popolari corsi")
-
-def test(pdfname):
-    reader = PdfReader(pdfname+'.pdf')
-    number_of_pages = len(reader.pages)
-    page = reader.pages[1]
-    text = page.extract_text()
