@@ -45,10 +45,6 @@ def startExtraction(url):
         "langue": extract_field(soup, "dcterms:language"),
     }
 
-    # print("\nInformations extraites:")
-    # for cle, valeur in infos.items():
-    #     print(f"- {cle}: {valeur if valeur else 'non trouve'}")
-    
     return infos
 
 

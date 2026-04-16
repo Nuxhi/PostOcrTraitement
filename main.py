@@ -16,27 +16,17 @@ import app.PdfChunking as PdfChunking
 import app.MetricsCerWer as MetricsCerWer
 
 import os
+import re
 from datetime import datetime
 from ollama import chat
 from ollama import ChatResponse
 
 modelListe = ['mistral', 'llama3:8b', 'qwen3-vl:8b']
-model = modelListe[1]
+model = modelListe[2]
 
 CheckModel.CheckModel(model)
 MetricsCerWer.configure_model(model)
     
-
-# def chunking(pdfname):
-#     #Path()
-#     print(pdfname)
-#     reader = PdfReader(pdfname+'.pdf')
-#     for i in range(NbrPage(pdfname)):
-#         try:
-#             ShowText(pdfname, i)
-#         except NameError as e:
-#             return e
-
 
 def GetLabelScore(txt):
   details = MetricsCerWer.score_details(txt)
@@ -84,14 +74,19 @@ def llmCorrection(infos, txt, i):
     }
   ])
   print(response.message.content)
-  print(model)
+  #print(model)
   write(response.message.content, i)
 
 
 def write(txt, i):
   global model
-  filename = datetime.now().strftime("pdf-%d-%m-%H")
-  filename = model+"filename"
+  Suffilename = datetime.now().strftime("pdf-%d-%m-%H")
+  # Windows forbids characters like ':' in file names. Without sanitizing,
+  # names such as "llama3:8b..." are written into NTFS alternate streams.
+  safe_model = re.sub(r'[<>:"/\\|?*\x00-\x1F]', "_", str(model)).strip(" .")
+  if not safe_model:
+      safe_model = "model"
+  filename = f"{safe_model}{Suffilename}"
   project_root = os.path.dirname(os.path.abspath(__file__))
   output_dir = os.path.join(project_root, "output")
   os.makedirs(output_dir, exist_ok=True)
@@ -100,7 +95,7 @@ def write(txt, i):
   with open(output_path, "a", encoding="utf-8") as f:
       f.write(f"MODEL : {model}")
       f.write("="*10 + f"\n, PAGE : {i} \n" + "="*10)
-      f.write(txt + "\n")
+      f.write((txt if isinstance(txt, str) else str(txt)) + "\n")
 
 
 def manager(txt, infos,i):
@@ -115,7 +110,6 @@ def manager(txt, infos,i):
   
 
 def LaunchPostOcr(url):
-  
   i:int = 0
 
   if not url:
@@ -124,7 +118,6 @@ def LaunchPostOcr(url):
 
   MetricsCerWer.configure_article_language(url)
 
-  
   infos = ContexteHelper.startExtraction(url) 
   PdfHelper.PdfStarter(url) #Téléchargement du pdf
   name = PdfHelper.GetLastName() #Récupération du nom donnée au pdf
@@ -141,5 +134,41 @@ def LaunchPostOcr(url):
   print("fini")
 
 
+def main():
+  global model
+
+  print(""" █████   █████ ██████████ ███████████   █████ ███████████   █████████    █████████     ██████   ██████  ████████    █████████ 
+▒▒███   ▒▒███ ▒▒███▒▒▒▒▒█▒▒███▒▒▒▒▒███ ▒▒███ ▒█▒▒▒███▒▒▒█  ███▒▒▒▒▒███  ███▒▒▒▒▒███   ▒▒██████ ██████  ███▒▒▒▒███  ███▒▒▒▒▒███
+ ▒███    ▒███  ▒███  █ ▒  ▒███    ▒███  ▒███ ▒   ▒███  ▒  ▒███    ▒███ ▒███    ▒▒▒     ▒███▒█████▒███ ▒▒▒    ▒███ ███     ▒▒▒ 
+ ▒███    ▒███  ▒██████    ▒██████████   ▒███     ▒███     ▒███████████ ▒▒█████████     ▒███▒▒███ ▒███    ██████▒ ▒███         
+ ▒▒███   ███   ▒███▒▒█    ▒███▒▒▒▒▒███  ▒███     ▒███     ▒███▒▒▒▒▒███  ▒▒▒▒▒▒▒▒███    ▒███ ▒▒▒  ▒███   ▒▒▒▒▒▒███▒███         
+  ▒▒▒█████▒    ▒███ ▒   █ ▒███    ▒███  ▒███     ▒███     ▒███    ▒███  ███    ▒███    ▒███      ▒███  ███   ▒███▒▒███     ███
+    ▒▒███      ██████████ █████   █████ █████    █████    █████   █████▒▒█████████     █████     █████▒▒████████  ▒▒█████████ 
+     ▒▒▒      ▒▒▒▒▒▒▒▒▒▒ ▒▒▒▒▒   ▒▒▒▒▒ ▒▒▒▒▒    ▒▒▒▒▒    ▒▒▒▒▒   ▒▒▒▒▒  ▒▒▒▒▒▒▒▒▒     ▒▒▒▒▒     ▒▒▒▒▒  ▒▒▒▒▒▒▒▒    ▒▒▒▒▒▒▒▒▒ """) 
+  
+  print("\n\n\nQue voulez vous faire ?\n1 - Lancer le post OCR\n2 - Téléchargement d'un pdf de la M3C\n3 - Quitter")
+  choix = input("Entrez votre choix : ")    
+  
+  match choix:
+  
+    case "1":
+      LaunchPostOcr("")
+  
+    case "2":
+      url = input("Entrez le lien du pdf à télécharger : ")
+      PdfHelper.PdfStarter(url)
+  
+    case "3":
+      exit()
+  
+    case _:
+      print("Choix invalide. Veuillez réessayer.")
+
+                                                                                                                         
 #Lancement méthode principale attention a la chauffe
-LaunchPostOcr("https://m3c.universita.corsica/s/fr/item/16")
+#LaunchPostOcr("https://m3c.universita.corsica/s/fr/item/73905")
+#LaunchPostOcr("https://m3c.universita.corsica/s/fr/item/58")
+#print(ContexteHelper.startExtraction("https://m3c.universita.corsica/s/fr/item/58"))
+
+if __name__ == "__main__":
+    main()
