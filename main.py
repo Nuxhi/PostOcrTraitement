@@ -102,7 +102,7 @@ def write(txt, i):
   
   with open(output_path, "a", encoding="utf-8") as f:
       f.write(f"MODEL : {model} \n")
-      f.write("="*10 + f"\n, PAGE : {i} \n" + "="*10)
+      f.write("="*10 + f"\n, PAGE : {i} \n" + "="*10 + "\n\n")
       f.write(str(txt) + "\n")
       f.close()
   print(f"page {i} dans le fichier : {output_path}")
