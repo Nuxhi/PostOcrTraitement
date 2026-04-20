@@ -36,3 +36,5 @@ def ShowText(pdfname, pageVoulu):
     text = page.extract_text()
     print(text)
     return text
+
+#ShowText("M3C-Histoire générale de la Corse, depuis les premiers temps jusqu’à nos jours (1835), tome I", 1)

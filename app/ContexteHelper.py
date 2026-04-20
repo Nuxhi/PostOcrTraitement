@@ -1,22 +1,13 @@
 import requests
 from bs4 import BeautifulSoup
 
-headers = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
-    "Accept-Language": "fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7",
-    "Accept-Encoding": "gzip, deflate, br, zstd",
-    "Connection": "keep-alive",
-    "Upgrade-Insecure-Requests": "1",
-    "Sec-Fetch-Site": "none",
-    "Sec-Fetch-Mode": "navigate",
-    "Sec-Fetch-User": "?1",
-    "Sec-Fetch-Dest": "document",
-    "sec-ch-ua": "\"Google Chrome\";v=\"135\", \"Chromium\";v=\"135\", \"Not.A/Brand\";v=\"24\"",
-    "sec-ch-ua-mobile": "?0",
-    "sec-ch-ua-platform": "\"Windows\"",
-    "Cache-Control": "max-age=0"
-}
+try:
+    from app.headers import headers
+except ModuleNotFoundError:
+    from headers import headers
+
+
+REQUEST_HEADERS = headers()
 
 
 def extract_field(soup_obj, data_type):
@@ -29,7 +20,7 @@ def extract_field(soup_obj, data_type):
 
 def startExtraction(url):
 
-    reponse = requests.get(url, headers=headers, timeout=15)
+    reponse = requests.get(url, headers=REQUEST_HEADERS, timeout=15)
     reponse.raise_for_status()
     #print(f"Status: {reponse.status_code}")
     soup = BeautifulSoup(reponse.text, "html.parser")
