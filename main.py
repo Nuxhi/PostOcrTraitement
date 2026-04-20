@@ -42,48 +42,41 @@ def llmCorrection(infos, txt, i):
   Dico : titre, description, date, couverture_temporelle, langue
   '''
   
-  
-  system_content = (
-      SystemPrompt.prompt() + "\n\n" +
-      "Pour t'aider, tu as les informations suivante a disposition : "
-      f"Titre : {infos['titre']} "
-      f"description : {infos['description']} "
-      f"date : {infos['date']} "
-      f"couverture temporelle : {infos['couverture_temporelle']} "
-      f"langue : {infos['langue']} \n\n"
-      "Exemples de correction OCR :\n"
-      "Entrée : L0 roy a parlc au peup1e\n"
-      "Sortie : Le roy a parlé au peuple\n\n"
-
-      "Entrée : lcs hommcs sont arr1vés\n"
-      "Sortie : les hommes sont arrivés\n\n"
-
-      "Répond STRICTEMENT sous la forme suivante :\n"
-      "<texte corrigé uniquement>\n"
-      "Ne rajoute aucun commentaire."
-      )
-
   response: ChatResponse = chat(model=model, messages=[
     {
       'role': 'system',
-      'content':system_content
+      'content':SystemPrompt.prompt2(infos)
       },
     {
       'role': 'user',
       'content': f"TEXTE A CORRIGER : {txt}"
     }
   ])
-  print(response.message.content)
-  #print(model)
 
-  with open("original", "a", encoding="utf-8") as f:
-    f.write(str(txt) + "\n\n\n")
-    f.close()
-  
-  write(response.message.content, i)
+  #print(response.message.content)
+  txtCorrection = str(response.message.content)
+  with open("log.txt", "a", encoding="utf-8") as f:
+    f.write(f"page {i} : {txt} \n\n")
+  f.close()
+  llmVerification(txt, txtCorrection, i)
+
+def llmVerification(txt, txtCorrection, i):
+   response: ChatResponse = chat(model=model, messages=[
+    {
+      'role': 'system',
+      'content':SystemPrompt.promptVerification()
+      },
+    {
+      'role': 'user',
+      'content': f"TEXTE ORIGINAL : {txt} \n\n TEXTE CORRIGE : {txtCorrection}"
+    }
+  ])
+   print(response.message.content)
+   reponse = str(response.message.content).lower()
+   write(txtCorrection, i, reponse)
 
 
-def write(txt, i):
+def write(txt, i, opignion):
   global model
   Suffilename = datetime.now().strftime("pdf-%d-%m-%H")
   
@@ -102,6 +95,7 @@ def write(txt, i):
   
   with open(output_path, "a", encoding="utf-8") as f:
       f.write(f"MODEL : {model} \n")
+      f.write(f"OPINION : {opignion} \n")
       f.write("="*10 + f"\n, PAGE : {i} \n" + "="*10 + "\n\n")
       f.write(str(txt) + "\n")
       f.close()
@@ -121,7 +115,7 @@ def manager(txt, infos,i):
   elif score == 'medium':
       llmCorrection(infos, txt, i)
   elif score == 'clean':
-     write(txt, i)
+     write(txt, i, "fidele")
   
 
 def LaunchPostOcr(url):
@@ -133,7 +127,7 @@ def LaunchPostOcr(url):
   récupère le nombre de page du pdf, et pour chaque page, 
   elle récupère le texte de la page et le manager en fonction du score donné par MetricsCerWer.
   '''
-  
+  global model
   i = 0
   
   if not url:
@@ -149,6 +143,8 @@ def LaunchPostOcr(url):
   NBRPAGE = PdfChunking.NbrPage(name)  #Récupération du nombre de page
 
   for i in range(0, NBRPAGE):
+    print("\n\n")
+    print("Vous travaillez avec le model : ", model)
     print("+"*30)
     print(f"ANALYSE EN COURS DE LA PAGE : {i}/{NBRPAGE}")
     print("+"*30)
@@ -184,6 +180,8 @@ def main():
     case "3":
       exit()
   
+    case "test":
+        LaunchPostOcr("https://m3c.universita.corsica/s/fr/item/58")
     case _:
       print("Choix invalide. Veuillez réessayer.")
 
