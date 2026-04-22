@@ -9,7 +9,6 @@ import app.SystemPrompt as SystemPrompt
 from main import write
 
 
-
 def llmCorrectionMistral(infos, txt, i):
     '''
     Dico : titre, description, date, couverture_temporelle, langue

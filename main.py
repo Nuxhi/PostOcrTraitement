@@ -42,12 +42,16 @@ def write(txt, i, opignion):
   Cette méthode permet d'écrire le texte corrigé dans un fichier de sortie.
   Le nom du fichier est généré à partir du nom du modèle utilisé et de la date de traitement.
   '''
-  global model
+  global model, api
   ################# IA ############################
   Suffilename = datetime.now().strftime("pdf-%d-%m-%H")
   #safe_model = re.sub(r'[<>:"/\\|?*\x00-\x1F]', "_", str(model)).strip(" .")
-  safe_model = model.split(":")[0] 
-  print(safe_model)
+  print(f"model : {model} - api : {api}")
+  if api:
+      safe_model = "MistralAPI"
+  else:
+    safe_model = model.split(":")[0] 
+  
   if not safe_model:
       safe_model = "model"
   
@@ -61,6 +65,7 @@ def write(txt, i, opignion):
   #### Plus d'IA  
 
   #Ne bloque jamais l'ecriture du fichier si le rescoring echoue.
+  
   try:
     nouvelleMetrics = getLabelScore(txt)
     print(f"Nouvelle metrics : {nouvelleMetrics}")
@@ -110,8 +115,7 @@ def launchPostOcr(url):
   '''
   global model, api
   i = 0
-  if api:
-     model = "APIMistral"
+  print(api, "api dans launchPostOcr")
 
   if not url:
       url = input("Lien de l'article a travailler : ")
@@ -167,6 +171,7 @@ def main():
 
     case "api":
         api = True
+        print(api, "api activé")
         launchPostOcr("https://m3c.universita.corsica/s/fr/item/58")
 
     case _:
