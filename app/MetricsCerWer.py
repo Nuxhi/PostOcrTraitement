@@ -39,24 +39,7 @@ COMMON_WORDS = set(top_n_list(ACTIVE_LANG, 5000))
 ACTIVE_MODEL = "Mistral"
 
 def getLangCode(url):
-    """Resout le code langue utilise par les ressources lexicales d'un document.
-
-    Principe:
-    - Lit la metadonnee `langue` via le service de contexte du document.
-    - Conserve uniquement la premiere langue si plusieurs valeurs sont separees par `;`.
-    - Convertit les libelles humains en codes courts via `LANG_MAP`.
-    - Applique des fallback explicites pour les langues peu ou non supportees
-      par `wordfreq`:
-      - Corse (`co`) -> Italien (`it`).
-      - Latin (`la`) -> Francais (`fr`).
-
-    Args:
-        url (str): URL du document utilisee pour recuperer les metadonnees.
-
-    Returns:
-        str: Code langue normalise compatible avec les outils lexicaux en aval.
-        Retourne `"fr"` par defaut si la langue est absente ou inconnue.
-    """
+    """Return a supported language code inferred from article metadata."""
     frl = {"fr", "français", "francais"}
 
     langue_raw = ContexteHelper.getInfo(url, 'langue')
@@ -67,7 +50,6 @@ def getLangCode(url):
     if not langues:
         return "fr"
 
-    # Regle metier: si la 2e langue est le francais, on force le dictionnaire FR.
     if len(langues) >= 2 and langues[1] in frl:
         return "fr"
 
@@ -75,7 +57,6 @@ def getLangCode(url):
 
     lang_code = LANG_MAP.get(langue, "fr")
 
-    # fallback wordfreq
     if lang_code == "co":   # corse
         return "it"
 
@@ -85,7 +66,7 @@ def getLangCode(url):
     return lang_code
 
 def configureArticleLanguage(url: str) -> str:
-    """Configure la langue active des metriques a partir de l'URL article."""
+    """Configure active lexical language from article URL."""
     global ACTIVE_LANG, COMMON_WORDS
     ACTIVE_LANG = getLangCode(url)
     COMMON_WORDS = set(top_n_list(ACTIVE_LANG, 5000))
@@ -93,7 +74,7 @@ def configureArticleLanguage(url: str) -> str:
 
 
 def configureModel(model_name: str) -> str:
-    """Configure le modele LLM utilise par la classification OCR."""
+    """Configure active LLM model for OCR classification."""
     global ACTIVE_MODEL
     if model_name:
         ACTIVE_MODEL = str(model_name).strip()
@@ -104,20 +85,7 @@ def configureModel(model_name: str) -> str:
 # =========================
 
 def normalize(text: str) -> str:
-    """Normalise le texte OCR avant les analyses heuristiques et lexicales.
-
-    Principe:
-    - Passe le texte en minuscules.
-    - Supprime la ponctuation et les symboles speciaux en conservant lettres,
-      chiffres, espaces et caracteres accentues courants.
-    - Reduit les espaces multiples a un seul espace.
-
-    Args:
-        text (str): Texte OCR brut.
-
-    Returns:
-        str: Texte nettoye avec une tokenisation plus stable.
-    """
+    """Lowercase and sanitize OCR text for stable token processing."""
     text = text.lower()
     text = re.sub(r"[^\w\sàâéèêëîïôûùüç]", " ", text)
     text = re.sub(r"\s+", " ", text)
@@ -130,37 +98,12 @@ def normalize(text: str) -> str:
 # =========================
 
 def ocrNoiseScore(text):
-    """Estime la densite de bruit OCR brut via des motifs explicites.
-
-    Principe:
-    - Compte les occurrences de symboles et structures souvent liees aux artefacts OCR
-      (`~`, parentheses, chiffres dans les mots, espacements anormaux).
-    - Divise le total par la longueur du texte pour obtenir une densite normalisee.
-
-    Args:
-        text (str): Texte d'entree, en general deja normalise.
-
-    Returns:
-        float: Densite de bruit dans `[0, +inf)`, plus faible = meilleur.
-    """
+    """Estimate raw OCR noise density from simple artifact patterns."""
     patterns = [r"[~]", r"[()]", r"\d", r"[A-Za-z]{2,}\d", r"\d+[A-Za-z]{2,}", r"\s{2,}"]
     return sum(len(re.findall(p, text)) for p in patterns) / max(len(text), 1)
 
 def brokenWordRatio(text):
-    """Mesure la proportion de mots qui semblent structurellement corrompus.
-
-    Principe:
-    - Decoupe le texte en tokens.
-    - Marque les mots contenant des symboles OCR (`~`, `(`, `)`) ou de longues
-      suites improbables de consonnes.
-    - Retourne la proportion de mots marques.
-
-    Args:
-        text (str): Texte d'entree.
-
-    Returns:
-        float: Ratio dans `[0, 1]`; plus eleve = tokens plus suspects.
-    """
+    """Return ratio of tokens that look structurally broken."""
     words = text.split()
     if not words:
         return 0
@@ -175,35 +118,12 @@ def brokenWordRatio(text):
     return broken / len(words)
 
 def repetitionScore(text):
-    """Quantifie les artefacts suspects de repetition de caracteres.
-
-    Principe:
-    - Detecte les sequences ou un caractere est repete au moins trois fois.
-    - Normalise le nombre de repetitions par la longueur du texte.
-
-    Args:
-        text (str): Texte d'entree.
-
-    Returns:
-        float: Densite de repetition; plus elevee = corruption OCR plus probable.
-    """
+    """Measure repeated-character artifacts in the OCR text."""
     repeats = re.findall(r"(.)\1{2,}", text)
     return len(repeats) / max(len(text), 1)
 
 def subtleOcrPatterns(text):
-    """Capture des anomalies OCR subtiles non couvertes par les regles grossieres.
-
-    Principe:
-    - Recherche des motifs de confusion OCR connus (melange de casse,
-      sequences `il1`, grappes `rn`, tildes inserees dans les mots).
-    - Retourne une densite normalisee par la longueur du texte.
-
-    Args:
-        text (str): Texte d'entree.
-
-    Returns:
-        float: Densite d'anomalies subtiles; plus faible = meilleur.
-    """
+    """Capture subtle OCR confusion motifs not covered by coarse rules."""
     patterns = [
         r"[a-z]{1}[A-Z]{1}[a-z]+",
         r"[a-z]{2,}[~][a-z]*",
@@ -213,22 +133,7 @@ def subtleOcrPatterns(text):
     return sum(len(re.findall(p, text)) for p in patterns) / max(len(text), 1)
 
 def ocrErrorDensity(text):
-    """Calcule la densite d'erreurs OCR au niveau mot via des regles en couches.
-
-    Principe:
-    - Parcourt les mots et marque les erreurs probables selon plusieurs tests:
-      - melange lettres/chiffres (`a1`, `1a`),
-      - artefacts de ponctuation OCR (`~`, parentheses),
-      - longues suites de consonnes,
-      - absence de voyelles sur des mots assez longs.
-    - Les mots courts (`<= 2`) sont ignores pour la regle des voyelles.
-
-    Args:
-        text (str): Texte d'entree.
-
-    Returns:
-        float: Ratio de mots marques comme erreurs OCR, dans `[0, 1]`.
-    """
+    """Estimate per-word OCR error density using layered regex heuristics."""
     words = text.split()
     if not words:
         return 0
@@ -258,25 +163,7 @@ def ocrErrorDensity(text):
 # =========================
 
 def qualityScore(text):
-    """Agrege la qualite OCR heuristique en un score normalise unique.
-
-    Principe:
-    - Normalise d'abord le texte pour fiabiliser l'extraction des signaux.
-    - Calcule cinq composantes heuristiques:
-      - densite de bruit,
-      - ratio de mots casses,
-      - densite d'erreurs OCR,
-      - densite de repetitions,
-      - densite d'anomalies subtiles.
-    - Construit une penalite ponderee puis la convertit en qualite via `1 - penalite`.
-    - Borne la penalite a `1.0` pour conserver un score final dans `[0, 1]`.
-
-    Args:
-        text (str): Texte OCR brut.
-
-    Returns:
-        float: Score heuristique de qualite dans `[0, 1]`; plus eleve = meilleur.
-    """
+    """Compute a weighted heuristic OCR quality score in [0, 1]."""
     text = normalize(text)
 
     noise = ocrNoiseScore(text)
@@ -300,23 +187,7 @@ def qualityScore(text):
 # =========================
 
 def lexicalPenalty(text):
-    """Estime l'anormalite lexicale via frequence et distance d'edition.
-
-    Principe:
-    - Normalise et tokenise le texte.
-    - Ignore les tokens courts (`len < 4`).
-    - Pour chaque token, verifie d'abord la frequence dans le corpus (`zipf_frequency`).
-      Les mots frequents sont consideres comme valides.
-    - Pour les mots rares, compare a un sous-ensemble de mots communs de longueur
-      proche et calcule la distance minimale de Levenshtein.
-    - Un mot est penalise si le meilleur candidat reste eloigne (`>= 2`).
-
-    Args:
-        text (str): Texte d'entree.
-
-    Returns:
-        float: Ratio de penalite dans `[0, 1]`; plus faible = texte plus propre lexicalement.
-    """
+    """Estimate lexical anomaly penalty using frequency and edit distance."""
     words = normalize(text).split()
     if not words:
         return 0
@@ -351,20 +222,7 @@ def lexicalPenalty(text):
 # =========================
 
 def llmClassify(text):
-    """Demande au LLM de classer la qualite OCR en labels discrets.
-
-    Principe:
-    - Envoie un prompt deterministe (`temperature=0`) au modele.
-    - Utilise un prompt systeme dedie decrivant les classes attendues.
-    - Retourne le label en minuscules.
-
-    Args:
-        text (str): Texte OCR a classer.
-
-    Returns:
-        str: L'un des labels attendus (`clean`, `medium`, `dirty`) si le modele
-        suit les consignes, sinon une valeur de fallback.
-    """
+    """Ask the LLM for a discrete OCR quality label."""
     response: ChatResponse = chat(
         model=ACTIVE_MODEL,
         options={
@@ -387,21 +245,7 @@ def llmClassify(text):
     return response.message.content.strip().lower()
 
 def llmToScore(label):
-    """Convertit un label LLM de qualite en score numerique.
-
-    Principe:
-    - Applique une table fixe label -> score:
-      - `clean -> 1.0`
-      - `medium -> 0.6`
-      - `dirty -> 0.2`
-    - Utilise `0.5` comme fallback neutre pour les labels inconnus.
-
-    Args:
-        label (str): Label produit par le LLM.
-
-    Returns:
-        float: Score numerique compatible avec la fusion ponderee.
-    """
+    """Map an LLM quality label to a numeric score."""
     return {
         "clean": 1.0,
         "medium": 0.6,
@@ -413,24 +257,7 @@ def llmToScore(label):
 # =========================
 
 def _finalFusion(text):
-    """Calcule le score fusionne et le label final sans exposer la logique brute.
-
-    Principe:
-    - Lance en parallele le bloc algorithmes et le bloc LLM.
-    - Fusionne les resultats avec une pondération plus forte pour les signaux
-      algorithmiques que pour le LLM.
-    - Retourne le score et le label final pour reutilisation interne.
-
-    Args:
-        text (str): Texte OCR a evaluer.
-
-    Returns:
-        tuple[float, str, str, float]:
-            - score fusionne final,
-            - label final,
-            - label brut du LLM,
-            - score algo (heuristique + lexical, sans composante LLM).
-    """
+    """Run parallel scoring (algo + LLM) and return fused score and label."""
     algo_results = {}
     llm_results = {}
     errors = []
@@ -489,15 +316,7 @@ def _finalFusion(text):
 
 
 def scoreDetails(text):
-    """Retourne les details utiles pour afficher les decisions de scoring.
-
-    Args:
-        text (str): Texte OCR a evaluer.
-
-    Returns:
-        dict: Details contenant `algo_score`, `llm_label`, `final_score`,
-        et `final_label_value`.
-    """
+    """Return all scoring details needed by the caller."""
     final_score, final_label_value, llm_label, algo_score = _finalFusion(text)
     return {
         "algo_score": algo_score,
@@ -505,54 +324,3 @@ def scoreDetails(text):
         "final_score": final_score,
         "final_label_value": final_label_value,
     }
-
-
-def finalQualityScore(text):
-    """Retourne uniquement le label final issu de la fusion.
-
-    Principe:
-    - S'appuie sur la fusion interne qui combine les signaux algorithmiques
-      et le signal LLM.
-    - Les signaux algorithmiques ont un poids legerement plus fort que le LLM.
-
-    Args:
-        text (str): Texte OCR a evaluer.
-
-    Returns:
-        str: Label final dans `{clean, medium, dirty}`.
-    """
-    _, final_label_value, _, _ = _finalFusion(text)
-    return final_label_value
-
-# =========================
-# DEBUG COMPLET
-# =========================
-
-def debug(text):
-    """Affiche les metriques intermediaires pour inspection et ajustement.
-
-    Principe:
-    - Recalcule chaque signal majeur de la chaine de scoring.
-    - Affiche score heuristique, penalite lexicale, label LLM, score fusionne
-      et classe finale dans un bloc lisible.
-
-    Args:
-        text (str): Texte OCR a analyser.
-
-    Returns:
-        None: Effet de bord, impression console pour le diagnostic.
-    """
-    h = qualityScore(text)
-    lex = lexicalPenalty(text)
-    llm = llmClassify(text)
-    final_score, final_label_value, llm_label, algo_score = _finalFusion(text)
-
-    print("\n--- DEBUG OCR ---")
-    print("TEXT:", text)
-    print("heuristic:", round(h, 3))
-    print("lexical penalty:", round(lex, 3))
-    print("llm:", llm)
-    print("llm label (fusion):", llm_label)
-    print("algo score:", round(algo_score, 3))
-    print("final score:", round(final_score, 3))
-    print("final label:", final_label_value)

@@ -53,7 +53,7 @@ def getUrl(url):
     driver.get(url)
 
 
-    time.sleep(1)
+    time.sleep(3)
     html = driver.page_source
     soup = BeautifulSoup(html, "html.parser")
     div = soup.select_one('iframe')

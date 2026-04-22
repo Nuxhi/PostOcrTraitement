@@ -45,8 +45,9 @@ def write(txt, i, opignion):
   global model
   ################# IA ############################
   Suffilename = datetime.now().strftime("pdf-%d-%m-%H")
-  safe_model = re.sub(r'[<>:"/\\|?*\x00-\x1F]', "_", str(model)).strip(" .")
-  
+  #safe_model = re.sub(r'[<>:"/\\|?*\x00-\x1F]', "_", str(model)).strip(" .")
+  safe_model = model.split(":")[0] 
+  print(safe_model)
   if not safe_model:
       safe_model = "model"
   
@@ -58,7 +59,13 @@ def write(txt, i, opignion):
 
   output_path = os.path.join(output_dir, filename + '.txt')
   #### Plus d'IA  
-  
+
+  #Ne bloque jamais l'ecriture du fichier si le rescoring echoue.
+  try:
+    nouvelleMetrics = getLabelScore(txt)
+    print(f"Nouvelle metrics : {nouvelleMetrics}")
+  except Exception as exc:
+    print(f"[write] rescoring ignore: {exc}")
 
   with open(output_path, "a", encoding="utf-8") as f:
       f.write(f"MODEL : {model} \n")
@@ -75,17 +82,17 @@ def manager(txt, infos,i):
   Cette classe permet de manager le texte de la page en fonction du score donné par MetricsCerWer.
   Si le score est "dirty" ou "medium", on envoie le texte a corriger a l'LLM, sinon on écrit le texte directement dans un fichier de sortie.
   '''
-  global api
+  global api, model
   score = getLabelScore(txt)
   
   if score == 'dirty':
       if api:
-          Llm.llmCorrectionMistral(infos, txt, i, model)
+          Llm.llmCorrectionMistral(infos, txt, i)
       else:
           Llm.llmCorrectionLocal(infos, txt, i, model)
   elif score == 'medium':
       if api:
-          Llm.llmCorrectionMistral(infos, txt, i, model)
+          Llm.llmCorrectionMistral(infos, txt, i)
       else:
           Llm.llmCorrectionLocal(infos, txt, i, model)
   elif score == 'clean':
@@ -101,10 +108,11 @@ def launchPostOcr(url):
   récupère le nombre de page du pdf, et pour chaque page, 
   elle récupère le texte de la page et le manager en fonction du score donné par MetricsCerWer.
   '''
-  global model
+  global model, api
   i = 0
   if api:
      model = "APIMistral"
+
   if not url:
       url = input("Lien de l'article a travailler : ")
   print(f"[LLM] - url : {url} ")
@@ -118,7 +126,7 @@ def launchPostOcr(url):
 
   for i in range(0, NBRPAGE):
     print(f"\n\n Vous travaillez avec le model : {model}")
-    print(f"+"*30, "ANALYSE EN COURS DE LA PAGE : {i}/{NBRPAGE}", "+"*30)
+    print("+"*30, f"ANALYSE EN COURS DE LA PAGE : {i}/{NBRPAGE}", "+"*30)
 
     txt = PdfChunking.showText(NAME, i)
     manager(txt, infos, i)
@@ -127,9 +135,10 @@ def launchPostOcr(url):
 
 
 def main():
-  global model
+  global model, api
 
-  print(""" █████   █████ ██████████ ███████████   █████ ███████████   █████████    █████████     ██████   ██████  ████████    █████████ 
+  print(""" 
+█████   █████ ██████████ ███████████   █████ ███████████   █████████    █████████     ██████   ██████  ████████    █████████ 
 ▒▒███   ▒▒███ ▒▒███▒▒▒▒▒█▒▒███▒▒▒▒▒███ ▒▒███ ▒█▒▒▒███▒▒▒█  ███▒▒▒▒▒███  ███▒▒▒▒▒███   ▒▒██████ ██████  ███▒▒▒▒███  ███▒▒▒▒▒███
  ▒███    ▒███  ▒███  █ ▒  ▒███    ▒███  ▒███ ▒   ▒███  ▒  ▒███    ▒███ ▒███    ▒▒▒     ▒███▒█████▒███ ▒▒▒    ▒███ ███     ▒▒▒ 
  ▒███    ▒███  ▒██████    ▒██████████   ▒███     ▒███     ▒███████████ ▒▒█████████     ▒███▒▒███ ▒███    ██████▒ ▒███         

@@ -27,10 +27,15 @@ def llmCorrectionMistral(infos, txt, i):
             "content": f"TEXTE A CORRIGER : {txt}",
             "role": "user",
         }
-    ], stream=False)
+    ], 
+        stream=False,
+        temperature=0.2,
+        max_tokens=1000,
+        top_p=0.3,
+    )
 
-    print(res) # a RETIRER PLUS TARD
-    txtCorrection = str(res)
+    txtCorrection = str(res.choices[0].message.content)
+    #print(txtCorrection) # a RETIRER PLUS TARD
 
     # Debug : écriture du texte original dans un fichier de log
     with open("log.txt", "a", encoding="utf-8") as f:
@@ -43,20 +48,24 @@ def llmCorrectionMistral(infos, txt, i):
 
 def llmVerificationMistral(txt, txtCorrection, i):
     client = Mistral(api_key=os.getenv("MISTRAL_API_KEY", ""))
-    response = client.chat(
-     [
-        {
-          'role': 'system',
-          'content':SystemPrompt.promptVerification()
-        },
-        {
-          'role': 'user',
-          'content': f"TEXTE ORIGINAL : {txt} \n\n TEXTE CORRIGE : {txtCorrection}"
-        }
-     ]
-      )
-    print(response.message.content)
-    reponse = str(response.message.content).lower()
+    res = client.chat.complete(
+        model="mistral-small-latest",
+        messages=[
+            {
+                "role": "system",
+                "content": SystemPrompt.promptVerification()
+            },
+            {
+                "role": "user",
+                "content": f"TEXTE ORIGINAL : {txt} \n\n TEXTE CORRIGE : {txtCorrection}"
+            }
+        ],
+        temperature=0.2,
+        max_tokens=1000,
+        top_p=0.3,
+    )
+    #print(res.choices[0].message.content) # a RETIRER PLUS TARD
+    reponse = str(res.choices[0].message.content)
     write(txtCorrection, i, reponse)
 
 
@@ -79,7 +88,12 @@ def llmCorrectionLocal(infos, txt, i, model):
       'role': 'user',
       'content': f"TEXTE A CORRIGER : {txt}"
     }
-  ])
+  ],
+  options={
+      "temperature": 0.2,
+      "max_tokens": 1000,
+      "top_p": 0.3
+    })
 
   print(response.message.content)
   txtCorrection = str(response.message.content)
@@ -100,7 +114,12 @@ def llmVerificationLocal(txt, txtCorrection, i, model):
       'role': 'user',
       'content': f"TEXTE ORIGINAL : {txt} \n\n TEXTE CORRIGE : {txtCorrection}"
     }
-  ])
+  ],
+  options={
+        "temperature": 0.2,
+        "max_tokens": 1000,
+        "top_p": 0.3
+    })
    print(response.message.content)
    reponse = str(response.message.content).lower()
    write(txtCorrection, i, reponse)
