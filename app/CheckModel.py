@@ -11,7 +11,7 @@ from ollama import ChatResponse
 
 
 
-def CheckModel(YourModel):
+def checkModel(YourModel):
     '''
     Cette méthode a pour but de vérifié si le model que l'utilisateur souhaite intallé et présent sur la machine
     si ce n'est pas le cas on l'installe

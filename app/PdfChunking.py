@@ -10,12 +10,17 @@ To limit the size of the content streams to process (and avoid OOM errors in you
 consider checking len(page.get_contents().get_data()) beforehand.
 '''
 
-def Path():
+@DeprecationWarning
+def path():
+    '''
+    Utile pour le debug aussi
+    a terme cette methode ne sera plus utile
+    '''
     print(os.getcwd())
     os.chdir("pdf")
 
 
-def NbrPage(pdfname):
+def nbrPage(pdfname):
     '''
     Affiche le nombre de page du pdf
     Surtout utile pour showText
@@ -24,17 +29,17 @@ def NbrPage(pdfname):
     return len(reader.pages)
 
 
-def ShowText(pdfname, pageVoulu):
+def showText(pdfname, pageVoulu):
     '''
     permet d'afficher le texte de la page selectionné.    
     '''
-    #Path()
+    #path()
     reader = PdfReader(pdfname+'.pdf')
-    if pageVoulu > NbrPage(pdfname):
+    if pageVoulu > nbrPage(pdfname):
         return "La page selectionnée n'est pas disponile ()"
     page = reader.pages[pageVoulu]
     text = page.extract_text()
     #print(text)
     return text
 
-#ShowText("M3C-Histoire générale de la Corse, depuis les premiers temps jusqu’à nos jours (1835), tome I", 1)
+#showText("M3C-Histoire générale de la Corse, depuis les premiers temps jusqu’à nos jours (1835), tome I", 1)

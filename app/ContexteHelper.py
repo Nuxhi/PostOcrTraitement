@@ -2,15 +2,15 @@ import requests
 from bs4 import BeautifulSoup
 
 try:
-    from app.headers import headers
+    from app.Headers import headers
 except ModuleNotFoundError:
-    from headers import headers
+    from Headers import headers
 
 
 REQUEST_HEADERS = headers()
 
 
-def extract_field(soup_obj, data_type):
+def extractField(soup_obj, data_type):
     node = soup_obj.select_one(
         f'div.accordion__item[data-type="{data_type}"] span.accordion__content'
     )
@@ -27,18 +27,18 @@ def startExtraction(url):
 
 
     infos = {
-        "titre": extract_field(soup, "dcterms:title")
+        "titre": extractField(soup, "dcterms:title")
         or (soup.select_one("h2.page-header__title").get_text(strip=True) if soup.select_one("h2.page-header__title") else None),
-        "description": extract_field(soup, "dcterms:description"),
-        "date": extract_field(soup, "dcterms:date"),
-        "couverture_temporelle": extract_field(soup, "dcterms:temporal"),
-        "langue": extract_field(soup, "dcterms:language"),
+        "description": extractField(soup, "dcterms:description"),
+        "date": extractField(soup, "dcterms:date"),
+        "couverture_temporelle": extractField(soup, "dcterms:temporal"),
+        "langue": extractField(soup, "dcterms:language"),
     }
 
     return infos
 
 
-def GetInfo(url, info):
+def getInfo(url, info):
     '''
     Cette methode permet de récupéré des informations depuis l'url fournis
     '''
@@ -53,6 +53,6 @@ def GetInfo(url, info):
     if info in infodic:
         print(f"[GetInfo] - Information trouvé : {infodic[info]}")
         return infodic[info]
-
-    print("information non comprise")
-    return False
+    else:
+        print("information non comprise")
+        return False

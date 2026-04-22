@@ -14,72 +14,37 @@ import app.SystemPrompt as SystemPrompt
 import app.PdfDownloader as PdfDownloader
 import app.PdfChunking as PdfChunking
 import app.MetricsCerWer as MetricsCerWer
+import app.Llm as Llm
 
 import os
 import re
 from datetime import datetime
-from ollama import chat
-from ollama import ChatResponse
+
+
 
 modelListe = ['mistral', 'llama3:8b', 'qwen3-vl:8b']
 model = modelListe[1] #Choix du modèle
+api = False #Utile pour le local uniquement, à changer plus tard pour une question d'optimisation
 
-CheckModel.CheckModel(model)
-MetricsCerWer.configure_model(model)
+CheckModel.checkModel(model)
+MetricsCerWer.configureModel(model)
     
-
-def GetLabelScore(txt):
-  details = MetricsCerWer.score_details(txt)
+def getLabelScore(txt):
+  details = MetricsCerWer.scoreDetails(txt)
   print("algo_score:", round(details["algo_score"], 3))
   print("llm_label:", details["llm_label"])
   print("final_label_value:", details["final_label_value"])
   return details["final_label_value"]
    
 
-
-def llmCorrection(infos, txt, i):
-  '''
-  Dico : titre, description, date, couverture_temporelle, langue
-  '''
-  
-  response: ChatResponse = chat(model=model, messages=[
-    {
-      'role': 'system',
-      'content':SystemPrompt.prompt2(infos)
-      },
-    {
-      'role': 'user',
-      'content': f"TEXTE A CORRIGER : {txt}"
-    }
-  ])
-
-  #print(response.message.content)
-  txtCorrection = str(response.message.content)
-  with open("log.txt", "a", encoding="utf-8") as f:
-    f.write(f"page {i} : {txt} \n\n")
-  f.close()
-  llmVerification(txt, txtCorrection, i)
-
-def llmVerification(txt, txtCorrection, i):
-   response: ChatResponse = chat(model=model, messages=[
-    {
-      'role': 'system',
-      'content':SystemPrompt.promptVerification()
-      },
-    {
-      'role': 'user',
-      'content': f"TEXTE ORIGINAL : {txt} \n\n TEXTE CORRIGE : {txtCorrection}"
-    }
-  ])
-   print(response.message.content)
-   reponse = str(response.message.content).lower()
-   write(txtCorrection, i, reponse)
-
-
 def write(txt, i, opignion):
+  '''
+  Cette méthode permet d'écrire le texte corrigé dans un fichier de sortie.
+  Le nom du fichier est généré à partir du nom du modèle utilisé et de la date de traitement.
+  '''
   global model
+  ################# IA ############################
   Suffilename = datetime.now().strftime("pdf-%d-%m-%H")
-  
   safe_model = re.sub(r'[<>:"/\\|?*\x00-\x1F]', "_", str(model)).strip(" .")
   
   if not safe_model:
@@ -92,7 +57,9 @@ def write(txt, i, opignion):
   os.makedirs(output_dir, exist_ok=True)
 
   output_path = os.path.join(output_dir, filename + '.txt')
+  #### Plus d'IA  
   
+
   with open(output_path, "a", encoding="utf-8") as f:
       f.write(f"MODEL : {model} \n")
       f.write(f"OPINION : {opignion} \n")
@@ -108,17 +75,24 @@ def manager(txt, infos,i):
   Cette classe permet de manager le texte de la page en fonction du score donné par MetricsCerWer.
   Si le score est "dirty" ou "medium", on envoie le texte a corriger a l'LLM, sinon on écrit le texte directement dans un fichier de sortie.
   '''
-  score = GetLabelScore(txt)
+  global api
+  score = getLabelScore(txt)
   
   if score == 'dirty':
-      llmCorrection(infos, txt, i)
+      if api:
+          Llm.llmCorrectionMistral(infos, txt, i, model)
+      else:
+          Llm.llmCorrectionLocal(infos, txt, i, model)
   elif score == 'medium':
-      llmCorrection(infos, txt, i)
+      if api:
+          Llm.llmCorrectionMistral(infos, txt, i, model)
+      else:
+          Llm.llmCorrectionLocal(infos, txt, i, model)
   elif score == 'clean':
      write(txt, i, "fidele")
   
 
-def LaunchPostOcr(url):
+def launchPostOcr(url):
   '''
   Methde principale qui lance le post OCR.
   Elle prend en entrée un url d'article, 
@@ -129,28 +103,27 @@ def LaunchPostOcr(url):
   '''
   global model
   i = 0
-  
+  if api:
+     model = "APIMistral"
   if not url:
       url = input("Lien de l'article a travailler : ")
   print(f"[LLM] - url : {url} ")
 
-  MetricsCerWer.configure_article_language(url)
+  MetricsCerWer.configureArticleLanguage(url)
   infos = ContexteHelper.startExtraction(url) 
 
-  PdfDownloader.PdfStarter(url) #Téléchargement du pdf
-  name = PdfDownloader.GetLastName() #Récupération du nom donnée au pdf
-  
-  NBRPAGE = PdfChunking.NbrPage(name)  #Récupération du nombre de page
+  PdfDownloader.pdfStarter(url) #Téléchargement du pdf
+  NAME = PdfDownloader.getLastName() #Récupération du nom donnée au pdf
+  NBRPAGE = PdfChunking.nbrPage(NAME)  #Récupération du nombre de page
 
   for i in range(0, NBRPAGE):
-    print("\n\n")
-    print("Vous travaillez avec le model : ", model)
-    print("+"*30)
-    print(f"ANALYSE EN COURS DE LA PAGE : {i}/{NBRPAGE}")
-    print("+"*30)
-    txt = PdfChunking.ShowText(name, i)
+    print(f"\n\n Vous travaillez avec le model : {model}")
+    print(f"+"*30, "ANALYSE EN COURS DE LA PAGE : {i}/{NBRPAGE}", "+"*30)
+
+    txt = PdfChunking.showText(NAME, i)
     manager(txt, infos, i)
-  print("fini")
+
+
 
 
 def main():
@@ -166,29 +139,34 @@ def main():
      ▒▒▒      ▒▒▒▒▒▒▒▒▒▒ ▒▒▒▒▒   ▒▒▒▒▒ ▒▒▒▒▒    ▒▒▒▒▒    ▒▒▒▒▒   ▒▒▒▒▒  ▒▒▒▒▒▒▒▒▒     ▒▒▒▒▒     ▒▒▒▒▒  ▒▒▒▒▒▒▒▒    ▒▒▒▒▒▒▒▒▒ """) 
   
   print("\n\n\nQue voulez vous faire ?\n1 - Lancer le post OCR\n2 - Téléchargement d'un pdf de la M3C\n3 - Quitter")
-  choix = input("Entrez votre choix : ")    
+  choix = input("Entrez votre choix : ").lower()    
   
   match choix:
   
     case "1":
-      LaunchPostOcr("")
+      launchPostOcr("")
   
     case "2":
       url = input("Entrez le lien du pdf à télécharger : ")
-      PdfDownloader.PdfStarter(url)
+      PdfDownloader.pdfStarter(url)
   
     case "3":
       exit()
   
-    case "test":
-        LaunchPostOcr("https://m3c.universita.corsica/s/fr/item/58")
+    case "local":
+        launchPostOcr("https://m3c.universita.corsica/s/fr/item/58")
+
+    case "api":
+        api = True
+        launchPostOcr("https://m3c.universita.corsica/s/fr/item/58")
+
     case _:
       print("Choix invalide. Veuillez réessayer.")
 
                                                                                                                          
 #Lancement méthode principale attention a la chauffe
-#LaunchPostOcr("https://m3c.universita.corsica/s/fr/item/73905")
-#LaunchPostOcr("https://m3c.universita.corsica/s/fr/item/58")
+#launchPostOcr("https://m3c.universita.corsica/s/fr/item/73905")
+#launchPostOcr("https://m3c.universita.corsica/s/fr/item/58")
 #print(ContexteHelper.startExtraction("https://m3c.universita.corsica/s/fr/item/58"))
 
 if __name__ == "__main__":

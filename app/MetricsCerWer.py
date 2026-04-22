@@ -38,7 +38,7 @@ ACTIVE_LANG = "fr"
 COMMON_WORDS = set(top_n_list(ACTIVE_LANG, 5000))
 ACTIVE_MODEL = "Mistral"
 
-def get_lang_code(url):
+def getLangCode(url):
     """Resout le code langue utilise par les ressources lexicales d'un document.
 
     Principe:
@@ -59,7 +59,7 @@ def get_lang_code(url):
     """
     frl = {"fr", "français", "francais"}
 
-    langue_raw = ContexteHelper.GetInfo(url, 'langue')
+    langue_raw = ContexteHelper.getInfo(url, 'langue')
     if not langue_raw:
         return "fr"
 
@@ -84,15 +84,15 @@ def get_lang_code(url):
 
     return lang_code
 
-def configure_article_language(url: str) -> str:
+def configureArticleLanguage(url: str) -> str:
     """Configure la langue active des metriques a partir de l'URL article."""
     global ACTIVE_LANG, COMMON_WORDS
-    ACTIVE_LANG = get_lang_code(url)
+    ACTIVE_LANG = getLangCode(url)
     COMMON_WORDS = set(top_n_list(ACTIVE_LANG, 5000))
     return ACTIVE_LANG
 
 
-def configure_model(model_name: str) -> str:
+def configureModel(model_name: str) -> str:
     """Configure le modele LLM utilise par la classification OCR."""
     global ACTIVE_MODEL
     if model_name:
@@ -129,7 +129,7 @@ def normalize(text: str) -> str:
 # HEURISTIQUES OCR
 # =========================
 
-def ocr_noise_score(text):
+def ocrNoiseScore(text):
     """Estime la densite de bruit OCR brut via des motifs explicites.
 
     Principe:
@@ -146,7 +146,7 @@ def ocr_noise_score(text):
     patterns = [r"[~]", r"[()]", r"\d", r"[A-Za-z]{2,}\d", r"\d+[A-Za-z]{2,}", r"\s{2,}"]
     return sum(len(re.findall(p, text)) for p in patterns) / max(len(text), 1)
 
-def broken_word_ratio(text):
+def brokenWordRatio(text):
     """Mesure la proportion de mots qui semblent structurellement corrompus.
 
     Principe:
@@ -174,7 +174,7 @@ def broken_word_ratio(text):
 
     return broken / len(words)
 
-def repetition_score(text):
+def repetitionScore(text):
     """Quantifie les artefacts suspects de repetition de caracteres.
 
     Principe:
@@ -190,7 +190,7 @@ def repetition_score(text):
     repeats = re.findall(r"(.)\1{2,}", text)
     return len(repeats) / max(len(text), 1)
 
-def subtle_ocr_patterns(text):
+def subtleOcrPatterns(text):
     """Capture des anomalies OCR subtiles non couvertes par les regles grossieres.
 
     Principe:
@@ -212,7 +212,7 @@ def subtle_ocr_patterns(text):
     ]
     return sum(len(re.findall(p, text)) for p in patterns) / max(len(text), 1)
 
-def ocr_error_density(text):
+def ocrErrorDensity(text):
     """Calcule la densite d'erreurs OCR au niveau mot via des regles en couches.
 
     Principe:
@@ -257,7 +257,7 @@ def ocr_error_density(text):
 # SCORE HEURISTIQUE DURCI
 # =========================
 
-def quality_score(text):
+def qualityScore(text):
     """Agrege la qualite OCR heuristique en un score normalise unique.
 
     Principe:
@@ -279,11 +279,11 @@ def quality_score(text):
     """
     text = normalize(text)
 
-    noise = ocr_noise_score(text)
-    broken = broken_word_ratio(text)
-    density = ocr_error_density(text)
-    repetition = repetition_score(text)
-    subtle = subtle_ocr_patterns(text)
+    noise = ocrNoiseScore(text)
+    broken = brokenWordRatio(text)
+    density = ocrErrorDensity(text)
+    repetition = repetitionScore(text)
+    subtle = subtleOcrPatterns(text)
 
     penalty = (
         0.25 * noise +
@@ -299,7 +299,7 @@ def quality_score(text):
 # SIGNAL LEXICAL (IMPORTANT)
 # =========================
 
-def lexical_penalty(text):
+def lexicalPenalty(text):
     """Estime l'anormalite lexicale via frequence et distance d'edition.
 
     Principe:
@@ -350,7 +350,7 @@ def lexical_penalty(text):
 # LLM
 # =========================
 
-def llm_classify(text):
+def llmClassify(text):
     """Demande au LLM de classer la qualite OCR en labels discrets.
 
     Principe:
@@ -386,7 +386,7 @@ def llm_classify(text):
 
     return response.message.content.strip().lower()
 
-def llm_to_score(label):
+def llmToScore(label):
     """Convertit un label LLM de qualite en score numerique.
 
     Principe:
@@ -412,7 +412,7 @@ def llm_to_score(label):
 # SCORE FINAL FUSION
 # =========================
 
-def _final_fusion(text):
+def _finalFusion(text):
     """Calcule le score fusionne et le label final sans exposer la logique brute.
 
     Principe:
@@ -435,25 +435,25 @@ def _final_fusion(text):
     llm_results = {}
     errors = []
 
-    def algo_worker():
+    def algoWorker():
         print("[MERICSCERWER] - [WORKER ALGO]")
         try:
-            algo_results["h"] = quality_score(text)
-            algo_results["lex"] = 1 - lexical_penalty(text)
+            algo_results["h"] = qualityScore(text)
+            algo_results["lex"] = 1 - lexicalPenalty(text)
         except Exception as exc:
             errors.append(exc)
 
-    def llm_worker():
+    def llmWorker():
         print("[MERICSCERWER] - [WORKER LLM]")
         try:
-            llm_label_local = llm_classify(text)
+            llm_label_local = llmClassify(text)
             llm_results["llm_label"] = llm_label_local
-            llm_results["llm_score"] = llm_to_score(llm_label_local)
+            llm_results["llm_score"] = llmToScore(llm_label_local)
         except Exception as exc:
             errors.append(exc)
 
-    algo_thread = threading.Thread(target=algo_worker, name="algo-worker")
-    llm_thread = threading.Thread(target=llm_worker, name="llm-worker")
+    algo_thread = threading.Thread(target=algoWorker, name="algo-worker")
+    llm_thread = threading.Thread(target=llmWorker, name="llm-worker")
 
     algo_thread.start()
     llm_thread.start()
@@ -488,7 +488,7 @@ def _final_fusion(text):
     return score, final_label_value, llm_label, algo_score
 
 
-def score_details(text):
+def scoreDetails(text):
     """Retourne les details utiles pour afficher les decisions de scoring.
 
     Args:
@@ -498,7 +498,7 @@ def score_details(text):
         dict: Details contenant `algo_score`, `llm_label`, `final_score`,
         et `final_label_value`.
     """
-    final_score, final_label_value, llm_label, algo_score = _final_fusion(text)
+    final_score, final_label_value, llm_label, algo_score = _finalFusion(text)
     return {
         "algo_score": algo_score,
         "llm_label": llm_label,
@@ -507,7 +507,7 @@ def score_details(text):
     }
 
 
-def final_quality_score(text):
+def finalQualityScore(text):
     """Retourne uniquement le label final issu de la fusion.
 
     Principe:
@@ -521,7 +521,7 @@ def final_quality_score(text):
     Returns:
         str: Label final dans `{clean, medium, dirty}`.
     """
-    _, final_label_value, _, _ = _final_fusion(text)
+    _, final_label_value, _, _ = _finalFusion(text)
     return final_label_value
 
 # =========================
@@ -542,10 +542,10 @@ def debug(text):
     Returns:
         None: Effet de bord, impression console pour le diagnostic.
     """
-    h = quality_score(text)
-    lex = lexical_penalty(text)
-    llm = llm_classify(text)
-    final_score, final_label_value, llm_label, algo_score = _final_fusion(text)
+    h = qualityScore(text)
+    lex = lexicalPenalty(text)
+    llm = llmClassify(text)
+    final_score, final_label_value, llm_label, algo_score = _finalFusion(text)
 
     print("\n--- DEBUG OCR ---")
     print("TEXT:", text)

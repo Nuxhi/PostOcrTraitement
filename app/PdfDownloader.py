@@ -12,11 +12,11 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
 try:
-    from app.ContexteHelper import GetInfo
-    from app.headers import headers
+    from app.ContexteHelper import getInfo
+    from app.Headers import headers
 except ModuleNotFoundError:
-    from ContexteHelper import GetInfo
-    from headers import headers
+    from ContexteHelper import getInfo
+    from Headers import headers
 
 
 REQUEST_HEADERS = headers()
@@ -28,7 +28,7 @@ REQUEST_HEADERS = headers()
 
 LastName = ""
 
-def GetLastName():
+def getLastName():
     '''
     Ne fonctionne que si le pdf a été téléchargé au moins une fois, sinon elle retourne une chaine vide
     '''
@@ -36,7 +36,7 @@ def GetLastName():
     return LastName
     
 
-def GetUrl(url):
+def getUrl(url):
     '''
     Cette méthode a pour objectif de trouver le lien du fichier pdf afficher sur la page de la M3C
     '''
@@ -44,11 +44,11 @@ def GetUrl(url):
     #Ouverture de la page web
     options = Options()
     options.add_argument("--headless=new")
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--disable-gpu")
-    options.add_argument("--remote-debugging-port=0")
-    options.add_argument("--window-size=1920,1080")
+    # options.add_argument("--no-sandbox")
+    # options.add_argument("--disable-dev-shm-usage")
+    # options.add_argument("--disable-gpu")
+    # options.add_argument("--remote-debugging-port=0")
+    # options.add_argument("--window-size=1920,1080")
     driver = webdriver.Chrome(options=options)
     driver.get(url)
 
@@ -75,14 +75,16 @@ def GetUrl(url):
                 return src
             else:
                 print("[GetUrl] - URL iframe non trouvé")
+    
     except Exception as e :
         return f"Erreur : {e}"
+    
     finally:
         driver.quit()
         print("[GetUrl] - Driver fermer")
     
 
-def DownloadPdf(src, BaseUrl):
+def downloadPdf(src, BaseUrl):
     global LastName
     '''
     Cette méthode a pour objectif de télécharger le fichier pdf de la source donnée
@@ -99,7 +101,7 @@ def DownloadPdf(src, BaseUrl):
     SrcClean = unquote(SrcParse)
     print(f"[DownloadPdf] - Url nettoyer : {SrcClean}")
 
-    PdfName = 'M3C-'+GetInfo(BaseUrl, 'titre')
+    PdfName = 'M3C-'+getInfo(BaseUrl, 'titre')
     print(f"[DownloadPdf] - pdf : {PdfName}")    
     
 
@@ -122,9 +124,9 @@ def DownloadPdf(src, BaseUrl):
     return True
 
 
-def PdfStarter(url):
+def pdfStarter(url):
     print('[PdfStarter] --> GetUrl ')
-    src = GetUrl(url)
+    src = getUrl(url)
     print('[PdfStarter] --> GetUrl --> DownloadPdf ')
-    DownloadPdf(src, url)
+    downloadPdf(src, url)
     
